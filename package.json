@@ -1,0 +1,27 @@
+{
+  "name": "secure-coder-payment-demo",
+  "version": "1.0.0",
+  "description": "SecurePay — IBM Concert Secure Coder demo payment application with IBM Vault integration",
+  "main": "server.js",
+  "scripts": {
+    "start":   "node server.js",
+    "dev":     "node server.js",
+    "scan":    "echo 'Run icsc_scan_packages + icsc_scan_code + icsc_scan_secrets via IBM Concert Secure Coder'",
+    "lint":    "echo 'Lint check'"
+  },
+  "dependencies": {
+    "express": "4.21.2"
+  },
+  "keywords": [
+    "ibm-concert",
+    "secure-coder",
+    "vault",
+    "payment",
+    "security-demo"
+  ],
+  "author": "IBM Concert Secure Coder Demo",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
