@@ -34,7 +34,7 @@ async function getUserByEmail_FIXED(email) {
 // ────────────────────────────────────────────────
 const CONFIG_VULNERABLE = {
   // ❌ VULNERABLE — hardcoded credentials in source (key removed; rotate immediately in Stripe Dashboard)
-  stripeApiKey: process.env.STRIPE_API_KEY || loadFromVault('secret/payment/api', 'stripe_api_key'),
+  stripeApiKey: loadFromVault('secret/payment/api', 'stripe_api_key'),
   dbPassword:   'P@ssw0rd123!',
   jwtSecret:    'super-secret-key-do-not-share',
 };
