@@ -1,0 +1,28 @@
+title = "SecurePay Gitleaks Config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id          = "generic-db-password"
+description = "Hardcoded database password"
+regex       = '''(?i)(db_?password|database_?pass|db_?pass)\s*[=:]\s*['"]([^'"]{8,})['"]'''
+secretGroup = 2
+[rules.allowlist]
+regexes     = ['''process\.env''', '''loadFromVault''', '''^\s*#''']
+
+[[rules]]
+id          = "generic-jwt-secret"
+description = "Hardcoded JWT secret"
+regex       = '''(?i)(jwt_?secret|token_?secret|signing_?key)\s*[=:]\s*['"]([a-f0-9]{32,}|[A-Za-z0-9+/]{32,}={0,2})['"]'''
+secretGroup = 2
+[rules.allowlist]
+regexes     = ['''process\.env''', '''loadFromVault''']
+
+[[rules]]
+id          = "generic-smtp-password"
+description = "Hardcoded SMTP password"
+regex       = '''(?i)(smtp_?pass(word)?|mail_?pass(word)?|email_?pass(word)?)\s*[=:]\s*['"]([^'"]{8,})['"]'''
+secretGroup = 5
+[rules.allowlist]
+regexes     = ['''process\.env''', '''loadFromVault''']
