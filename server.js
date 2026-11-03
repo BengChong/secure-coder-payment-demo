@@ -19,8 +19,8 @@ const app  = express();
 const PORT = process.env.PORT || 3000;
 
 // IBM Vault configuration
-const VAULT_ADDR  = process.env.VAULT_ADDR  || 'http://192.168.3.7:8200';
-const VAULT_TOKEN = process.env.VAULT_TOKEN || 'demo-root-token';
+const VAULT_ADDR  = process.env.VAULT_ADDR  || 'https://192.168.3.7:8200';
+const VAULT_TOKEN = process.env.VAULT_TOKEN;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -45,7 +45,7 @@ async function vaultRequest(method, urlPath, body = null) {
       path:     parsed.pathname + parsed.search,
       method,
       headers: {
-        'X-Vault-Token': VAULT_TOKEN,
+        ...(VAULT_TOKEN ? { 'X-Vault-Token': VAULT_TOKEN } : {}),
         'Content-Type':  'application/json',
       },
     };

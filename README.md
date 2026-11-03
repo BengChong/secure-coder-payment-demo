@@ -7,7 +7,7 @@ A jazzy dark-themed payment web application demonstrating **IBM Concert Secure C
 - 💳 **Payment Form** — Full card entry UI with real-time vulnerability indicators
 - 🔍 **Live Security Scanner** — Detects 11 real CVEs/vulnerabilities in demo mode
 - 🤖 **Auto-Remediation** — Concert Secure Coder auto-fixes all findings
-- 🔐 **IBM Vault Integration** — Connects to your IBM Vault instance at `192.168.3.7:8200`
+- 🔐 **IBM Vault Integration** — Connects to your IBM Vault instance at `https://192.168.3.7:8200`
 - 📋 **Security Audit Log** — Real-time event trail of all security-relevant actions
 - 🐛 **Vuln Code Demo** — Side-by-side before/after code for SQL Injection, XSS, Hardcoded Secrets, Outdated Deps
 
@@ -22,12 +22,26 @@ npm start
 
 ## IBM Vault Configuration
 
-The app connects to IBM Vault at `http://192.168.3.7:8200`. Configure via environment variables:
+The app connects to IBM Vault at `https://192.168.3.7:8200`. Configure via environment variables:
 
 ```bash
-VAULT_ADDR=http://192.168.3.7:8200
+VAULT_ADDR=https://192.168.3.7:8200
 VAULT_TOKEN=<your-vault-token>
 PORT=3000
+```
+
+To write the `stripe_api_key` secret to Vault (requires a valid admin token):
+
+```bash
+export VAULT_ADDR=https://192.168.3.7:8200
+export VAULT_SKIP_VERIFY=true   # if using self-signed TLS
+export VAULT_TOKEN=<your-admin-token>
+
+# KV v2 — write the secret
+vault kv put secret/payment/api stripe_api_key="<your-rotated-stripe-live-key>"
+
+# Verify it was written
+vault kv get secret/payment/api
 ```
 
 Expected Vault secret paths:

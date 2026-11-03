@@ -5,7 +5,7 @@
 
 'use strict';
 
-const VAULT_ADDR = 'http://192.168.3.7:8200';
+const VAULT_ADDR = 'https://192.168.3.7:8200';
 
 // Demo secrets to display when vault is unreachable
 const DEMO_SECRETS = [
