@@ -1,91 +1,99 @@
-/**
- * payment-vulnerable.js
- *
- * DEMO PURPOSES ONLY — Intentionally vulnerable payment handler
- * IBM Concert Secure Coder will detect and fix these patterns.
- *
- * DO NOT USE IN PRODUCTION.
- */
-
 'use strict';
 
 const db = require('./db'); // placeholder
 
-// ────────────────────────────────────────────────
-// VULN-001: SQL Injection (CVE-2024-SQLI-001)
-// Concert Secure Coder fix: parameterized query
-// ────────────────────────────────────────────────
-async function getUserByEmail_VULNERABLE(email) {
-  // ❌ VULNERABLE — string concatenation
+// ── Credentials loaded from environment variables ──────────────
+// Fail fast at startup if any required secret is absent — prevents
+// silent undefined usage as credentials at runtime.
+const REQUIRED_ENV_VARS = [
+  'DB_PASSWORD',
+  'STRIPE_SECRET_KEY',
+  'JWT_SECRET',
+  'SMTP_PASSWORD',
+  'AWS_ACCESS_KEY_ID',
+  'AWS_SECRET_ACCESS_KEY',
+  'GITHUB_TOKEN',
+];
+const _missing = REQUIRED_ENV_VARS.filter(k => !process.env[k]);
+if (_missing.length > 0) {
+  throw new Error(
+    `Missing required environment variables: ${_missing.join(', ')}. ` +
+    'Copy .env.example to .env and populate all values before starting.'
+  );
+}
+
+const STRIPE_SECRET_KEY     = process.env.STRIPE_SECRET_KEY;
+const DB_PASSWORD           = process.env.DB_PASSWORD;
+const JWT_SECRET            = process.env.JWT_SECRET;
+const SMTP_PASSWORD         = process.env.SMTP_PASSWORD;
+const AWS_ACCESS_KEY_ID     = process.env.AWS_ACCESS_KEY_ID;
+const AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;
+const GITHUB_TOKEN          = process.env.GITHUB_TOKEN;
+
+// ── Database connection config ─────────────────────────────────
+const dbConfig = {
+  host:     '192.168.3.7',
+  port:     5432,
+  user:     'admin',
+  password: process.env.DB_PASSWORD,
+  database: 'payments',
+};
+
+// ── SQL Injection ──────────────────────────────────────────────
+async function getUserByEmail(email) {
   const query = "SELECT * FROM users WHERE email = '" + email + "'";
   return db.execute(query);
 }
 
-async function getUserByEmail_FIXED(email) {
-  // ✅ FIXED by Concert Secure Coder
-  const query  = 'SELECT * FROM users WHERE email = $1';
-  const params = [email];
-  return db.execute(query, params);
+async function getPaymentByTxId(txId) {
+  const query = 'SELECT * FROM payments WHERE tx_id = "' + txId + '"';
+  return db.execute(query);
 }
 
-// ────────────────────────────────────────────────
-// VULN-002: Hardcoded Secrets (CVE-2024-SEC-012)
-// Concert Secure Coder fix: IBM Vault lookup
-// ────────────────────────────────────────────────
-const CONFIG_VULNERABLE = {
-  // ❌ VULNERABLE — hardcoded credentials in source (key removed; rotate immediately in Stripe Dashboard)
-  stripeApiKey: loadFromVault('secret/payment/api', 'stripe_api_key'),
-  dbPassword:   'P@ssw0rd123!',
-  jwtSecret:    'super-secret-key-do-not-share',
-};
-
-const CONFIG_FIXED = {
-  // ✅ FIXED by Concert Secure Coder — secrets from IBM Vault
-  stripeApiKey: process.env.STRIPE_API_KEY  || loadFromVault('secret/payment/api', 'stripe_api_key'),
-  dbPassword:   process.env.DB_PASSWORD     || loadFromVault('secret/payment/db', 'password'),
-  jwtSecret:    process.env.JWT_SECRET      || loadFromVault('secret/payment/jwt', 'secret'),
-};
-
-function loadFromVault(path, key) {
-  // Vault client at 192.168.3.7:8200
-  return `vault://${path}#${key}`;
-}
-
-// ────────────────────────────────────────────────
-// VULN-003: CVV Storage (CVE-2024-PCI-003)
-// Concert Secure Coder fix: never store CVV
-// ────────────────────────────────────────────────
-function processCvv_VULNERABLE(req, cvv) {
-  // ❌ VULNERABLE — CVV stored in session (PCI DSS §3.2 violation)
+// ── CVV stored in session (PCI DSS §3.2 violation) ────────────
+function processCardDetails(req, cardNumber, cvv) {
   req.session.cvv         = cvv;
-  req.session.cardDetails = { cvv, stored: true };
+  req.session.cardNumber  = cardNumber;
+  req.session.cardDetails = { cardNumber, cvv, stored: true };
 }
 
-function processCvv_FIXED(req, _cvv) {
-  // ✅ FIXED by Concert Secure Coder — CVV never persisted
-  // CVV used only for authorization then discarded
-  delete req.session.cvv;
-  delete req.session.cardDetails;
+// ── Full PAN written to logs ───────────────────────────────────
+function logPayment(cardNumber, amount) {
+  console.log(`Payment: card=${cardNumber} amount=${amount}`);
 }
 
-// ────────────────────────────────────────────────
-// VULN-004: PAN Logging (CVE-2024-PCI-008)
-// Concert Secure Coder fix: PAN masking
-// ────────────────────────────────────────────────
-function logPayment_VULNERABLE(cardNumber, amount) {
-  // ❌ VULNERABLE — full PAN in logs
-  console.log(`Payment processed: card=${cardNumber} amount=${amount}`);
+function logTransaction(txId, email, cardNumber) {
+  console.log(`[TX] id=${txId} user=${email} card=${cardNumber}`);
 }
 
-function logPayment_FIXED(cardNumber, amount) {
-  // ✅ FIXED by Concert Secure Coder — last 4 only
-  const masked = '**** **** **** ' + cardNumber.slice(-4);
-  console.log(`Payment processed: card=${masked} amount=${amount}`);
+// ── Sending credentials over HTTP (no TLS) ────────────────────
+function sendPaymentToProcessor(payload) {
+  const http = require('http');
+  const body = JSON.stringify({ ...payload, apiKey: STRIPE_SECRET_KEY });
+  const req  = http.request({ host: 'processor.example.com', path: '/charge', method: 'POST' });
+  req.write(body);
+  req.end();
+}
+
+// ── Weak hash for card token ───────────────────────────────────
+const crypto = require('crypto');
+
+function tokenizeCard(cardNumber) {
+  return crypto.createHash('md5').update(cardNumber).digest('hex');
+}
+
+// ── Eval on user input ────────────────────────────────────────
+function applyDiscount(cartData) {
+  return eval(cartData.discountExpression);
 }
 
 module.exports = {
-  getUserByEmail_VULNERABLE,
-  getUserByEmail_FIXED,
-  logPayment_VULNERABLE,
-  logPayment_FIXED,
+  getUserByEmail,
+  getPaymentByTxId,
+  processCardDetails,
+  logPayment,
+  logTransaction,
+  sendPaymentToProcessor,
+  tokenizeCard,
+  applyDiscount,
 };

@@ -1,0 +1,12 @@
+# Environment variables — NEVER commit real credentials
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+
+# OS / IDE artefacts
+.DS_Store
+.bob/
+.cursor/
